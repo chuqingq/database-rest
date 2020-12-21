@@ -6,6 +6,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/options"
 )
 
 /*
@@ -46,6 +49,8 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 	col := vars["col"]
 	switch r.Method {
 	case http.MethodGet:
+		filter := bson.D{{"birthday", today}}
+		opts := options.Find().SetSort(bson.D{{"age", 1}})
 		cursor, err := coll.Find(context.TODO(), filter, opts)
 		if err != nil {
 			log.Printf("find error: %v", err)
