@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -10,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/options"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 /*
@@ -55,11 +57,11 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 		// filter
 		filterStr := r.FormValue("filter")
 		filter := map[string]interface{}{}
-		json.Unmarshal(fileterStr, &filter)
+		json.Unmarshal([]byte(filterStr), &filter)
 		// opts
-		optsStr := r.FormValue("opts")
-		opts := map[string]interface{}{}
-		json.Unmarshal(optsStr, &opts)
+		// optsStr := r.FormValue("opts")
+		// opts := map[string]interface{}{}
+		// json.Unmarshal([]byte(optsStr), &opts)
 		// db
 		cursor, err := coll.Find(context.TODO(), filter, opts)
 		if err != nil {
@@ -80,7 +82,7 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("marshal error: %v", err)
 			return
 		}
-		_, err := w.Write(b)
+		_, err = w.Write(b)
 		if err != nil {
 			log.Printf("write error: %v", err)
 			// TODO
@@ -93,7 +95,7 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 		docs := []interface{}{}
 		json.Unmarshal(body, &docs)
 		// db
-		res, err := coll.InsertMany(context.TODO(), docs/*, opts*/)
+		res, err := coll.InsertMany(context.TODO(), docs /*, opts*/)
 		if err != nil {
 			log.Printf("insertmany error: %v", err)
 			// TODO
@@ -101,21 +103,27 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("insertIDS: %v", res.InsertedIDs)
 		b, err := json.Marshal(res)
 		// TODO
-	case http.MethodPatch:
-		res, err := coll.UpdateMany(context.TODO(), filter, update)
+		_, err = w.Write(b)
 		if err != nil {
-			log.Printf("updatemany error: %v", err)
+			log.Printf("write error: %v", err)
 			// TODO
+			return
 		}
-		log.Printf("matchcount: %v", res.MatchedCount)
+	case http.MethodPatch:
+		// res, err := coll.UpdateMany(context.TODO(), filter, update)
+		// if err != nil {
+		// 	log.Printf("updatemany error: %v", err)
+		// 	// TODO
+		// }
+		// log.Printf("matchcount: %v", res.MatchedCount)
 		// TODO
 	case http.MethodDelete:
-		res, err := coll.DeleteMany(context.TODO(), filter, opts)
-		if err != nil {
-			log.Printf("deletemany error: %v", err)
-			// TODO
-		}
-		log.Printf("deletecount: %v", res.DeletedCount)
+		// res, err := coll.DeleteMany(context.TODO(), filter, opts)
+		// if err != nil {
+		// 	log.Printf("deletemany error: %v", err)
+		// 	// TODO
+		// }
+		// log.Printf("deletecount: %v", res.DeletedCount)
 		// TODO
 	default:
 		log.Printf("unknown method: %v", r.Method)
@@ -128,17 +136,17 @@ func main() {
 	flag.Parse()
 	// mongoclient
 	var err error
-	client, err = mongo.NewClient(options.Client().ApplyURI(dbUrl))
+	client, err = mongo.NewClient(options.Client().ApplyURI(*dbUrl))
 	if err != nil {
 		log.Printf("mongo.NewClient error: %v", err)
-		return err
+		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	err = client.Connect(ctx)
 	if err != nil {
 		log.Printf("client.Connect error: %v", err)
-		return err
+		return
 	}
 	// http
 	r := mux.NewRouter()
