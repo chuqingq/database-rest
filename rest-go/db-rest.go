@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
@@ -41,16 +43,15 @@ deleteone/deletemany
 https://pkg.go.dev/go.mongodb.org/mongo-driver/mongo#pkg-functions
 */
 
-var coll *mongo.Collection
+var client *mongo.Client
 
 func colHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	db := vars["db"]
-	col := vars["col"]
+	opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
+	coll := client.Database(vars["db"]).Collection(vars["col"])
 	switch r.Method {
 	case http.MethodGet:
 		filter := bson.D{{"birthday", today}}
-		opts := options.Find().SetSort(bson.D{{"age", 1}})
 		cursor, err := coll.Find(context.TODO(), filter, opts)
 		if err != nil {
 			log.Printf("find error: %v", err)
@@ -92,8 +93,24 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// TODO 读取配置文件；或者从命令行读取
+	// 命令行参数
+	dbUrl := flag.String("dburl", "mongodb://localhost:27017", "mongodb connection url")
+	flag.Parse()
+	// mongoclient
+	var err error
+	client, err = mongo.NewClient(options.Client().ApplyURI(dbUrl))
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		return err
+	}
+	// http
 	r := mux.NewRouter()
 	r.HandleFunc("/{db}/{col}", colHandler)
 	http.Handle("/", r)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
