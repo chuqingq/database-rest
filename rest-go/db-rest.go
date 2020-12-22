@@ -50,7 +50,7 @@ var client *mongo.Client
 func colHandler(w http.ResponseWriter, r *http.Request) {
 	// r.ParseForm()
 	vars := mux.Vars(r)
-	opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
+	// opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
 	coll := client.Database(vars["db"]).Collection(vars["col"])
 	switch r.Method {
 	case http.MethodGet:
@@ -60,9 +60,10 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 		filter := map[string]interface{}{}
 		json.Unmarshal([]byte(filterStr), &filter)
 		// opts
-		// optsStr := r.FormValue("opts")
-		// opts := map[string]interface{}{}
-		// json.Unmarshal([]byte(optsStr), &opts)
+		optsStr := `{"Limit":10,"Sort":{"age":1}}` // r.FormValue("opts")
+		opts := &options.FindOptions{}
+		json.Unmarshal([]byte(optsStr), opts)
+		log.Printf("opts: %v", opts)
 		// db
 		cursor, err := coll.Find(context.TODO(), filter, opts)
 		if err != nil {
