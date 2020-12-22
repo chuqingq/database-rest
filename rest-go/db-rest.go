@@ -48,7 +48,7 @@ https://pkg.go.dev/go.mongodb.org/mongo-driver/mongo#pkg-functions
 var client *mongo.Client
 
 func colHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	// r.ParseForm()
 	vars := mux.Vars(r)
 	opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
 	coll := client.Database(vars["db"]).Collection(vars["col"])
@@ -56,6 +56,7 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		// filter
 		filterStr := r.FormValue("filter")
+		log.Printf("filterStr: %v", filterStr)
 		filter := map[string]interface{}{}
 		json.Unmarshal([]byte(filterStr), &filter)
 		// opts
@@ -92,8 +93,14 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 		// docs
 		defer r.Body.Close()
 		body, err := ioutil.ReadAll(r.Body)
+		log.Printf("body: %v", body)
 		docs := []interface{}{}
-		json.Unmarshal(body, &docs)
+		err = json.Unmarshal(body, &docs)
+		if err != nil {
+			log.Printf("unmarshal error: %v", err)
+			return
+		}
+		log.Printf("docs: %v", docs)
 		// db
 		res, err := coll.InsertMany(context.TODO(), docs /*, opts*/)
 		if err != nil {
