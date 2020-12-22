@@ -65,21 +65,26 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("find error: %v", err)
 			// TODO
+			return
 		}
 		var res []bson.M
 		if err = cursor.All(context.TODO(), &res); err != nil {
 			log.Printf("all error: %v", err)
+			// TODO
+			return
 		}
 		// TODO
 		b, err := json.Marshal(res)
 		if err != nil {
 			// TODO
 			log.Printf("marshal error: %v", err)
+			return
 		}
 		_, err := w.Write(b)
 		if err != nil {
 			log.Printf("write error: %v", err)
 			// TODO
+			return
 		}
 	case http.MethodPost:
 		// docs
@@ -125,12 +130,14 @@ func main() {
 	var err error
 	client, err = mongo.NewClient(options.Client().ApplyURI(dbUrl))
 	if err != nil {
+		log.Printf("mongo.NewClient error: %v", err)
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	err = client.Connect(ctx)
 	if err != nil {
+		log.Printf("client.Connect error: %v", err)
 		return err
 	}
 	// http
