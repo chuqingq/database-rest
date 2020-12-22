@@ -46,30 +46,55 @@ https://pkg.go.dev/go.mongodb.org/mongo-driver/mongo#pkg-functions
 var client *mongo.Client
 
 func colHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
 	vars := mux.Vars(r)
 	opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
 	coll := client.Database(vars["db"]).Collection(vars["col"])
 	switch r.Method {
 	case http.MethodGet:
-		filter := bson.D{{"birthday", today}}
+		// filter
+		filterStr := r.FormValue("filter")
+		filter := map[string]interface{}{}
+		json.Unmarshal(fileterStr, &filter)
+		// opts
+		optsStr := r.FormValue("opts")
+		opts := map[string]interface{}{}
+		json.Unmarshal(optsStr, &opts)
+		// db
 		cursor, err := coll.Find(context.TODO(), filter, opts)
 		if err != nil {
 			log.Printf("find error: %v", err)
 			// TODO
 		}
-		var results []bson.M
-		if err = cursor.All(context.TODO(), &results); err != nil {
+		var res []bson.M
+		if err = cursor.All(context.TODO(), &res); err != nil {
 			log.Printf("all error: %v", err)
 		}
 		// TODO
+		b, err := json.Marshal(res)
+		if err != nil {
+			// TODO
+			log.Printf("marshal error: %v", err)
+		}
+		_, err := w.Write(b)
+		if err != nil {
+			log.Printf("write error: %v", err)
+			// TODO
+		}
 	case http.MethodPost:
-		// TODO docs
-		res, err := coll.InsertMany(context.TODO(), docs, opts)
+		// docs
+		defer r.Body.Close()
+		body, err := ioutil.ReadAll(r.Body)
+		docs := []interface{}{}
+		json.Unmarshal(body, &docs)
+		// db
+		res, err := coll.InsertMany(context.TODO(), docs/*, opts*/)
 		if err != nil {
 			log.Printf("insertmany error: %v", err)
 			// TODO
 		}
 		log.Printf("insertIDS: %v", res.InsertedIDs)
+		b, err := json.Marshal(res)
 		// TODO
 	case http.MethodPatch:
 		res, err := coll.UpdateMany(context.TODO(), filter, update)
