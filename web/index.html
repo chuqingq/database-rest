@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  </head>
+
+  <body>
+    <div id="text">
+    </div>
+  </body>
+  <!-- 引入 Vue 和 Vant 的 JS 文件 -->
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="db.js"></script>
+  <script>
+
+// insertmany
+axios.post('http://192.168.100.118:8080/mydb/mycol', {
+    "func": "insertmany",
+    "docs": [
+        {"mykey":"myvalue1","age":2},
+        {"mykey":"myvalue2","age":1},
+        {"mykey":"myvalue1","age":3}
+    ]
+}).then((e) => {
+    console.log('insert result: ', e);
+    // find
+    return axios.post('http://192.168.100.118:8080/mydb/mycol', {
+        "func": "find",
+        "filter": {"mykey":"myvalue1"}
+    });
+}).then((e) => {
+    console.log('find result: ', e);
+    // updatemany
+    return axios.post('http://192.168.100.118:8080/mydb/mycol', {
+        "func": "updatemany",
+        "filter": {"mykey":"myvalue1"},
+        "update": {"$set": {"age":4}}
+    });
+}).then((e) => {
+    console.log('updatemany result: ', e);
+}).catch((e) => {
+    console.log('error: ', e);
+})
+  </script>
+
+</html>
+
