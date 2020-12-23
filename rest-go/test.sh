@@ -1,11 +1,32 @@
-# create
-curl -X POST 'http://127.0.0.1:8080/mydb/mycol' -H 'Content-Type: application/json' -d '[{"mykey":"myvalue1"},{"mykey":"myvalue2"}]'
+# insertmany
+curl -X POST 'http://127.0.0.1:8080/mydb/mycol' -d '
+{
+	"func": "insertmany",
+	"docs": [
+		{"mykey":"myvalue1","age":2},
+		{"mykey":"myvalue2","age":1},
+		{"mykey":"myvalue1","age":3}
+	]
+}'
 
-# retrieve
-curl -X GET 'http://127.0.0.1:8080/mydb/mycol?filter={"mykey":"myvalue1"}'
+# find
+curl -X POST 'http://127.0.0.1:8080/mydb/mycol' -d '
+{
+	"func": "find",
+	"filter": {"mykey":"myvalue1"}
+}'
 
-# update
-curl -X PATCH 'http://127.0.0.1:8080/mydb/mycol?filter={"mykey":"myvalue1"}' -d '{"mykey":"myvalue3"}'
+# updatemany
+curl -X POST 'http://127.0.0.1:8080/mydb/mycol' -d '
+{
+	"func": "updatemany",
+	"filter": {"mykey":"myvalue1"},
+	"update": {"$set": {"age":4}}
+}'
 
-# delete
-curl -X DELETE 'http://127.0.0.1:8080/mydb/mycol?filter={"mykey":"myvalue3"}'
+# deletemany
+curl -X POST 'http://127.0.0.1:8080/mydb/mycol' -d '
+{
+	"func": "deletemany",
+	"filter": {"mykey":"myvalue2"}
+}'
