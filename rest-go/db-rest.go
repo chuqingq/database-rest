@@ -46,93 +46,151 @@ https://pkg.go.dev/go.mongodb.org/mongo-driver/mongo#pkg-functions
 */
 
 var client *mongo.Client
+/*
+{
+	"func": "insertmany|find|updatemany|deletemany",
+	"filter": {
+	},
+	"docs": [
+	],
+	"opts": {"Limit":2,"Sort":{"mykey":1}}
+}
+*/
+
+type body struct {
+	Func string `json:func`
+	Docs []interface{} `json:docs`
+	Filter interface{} `json:filter`
+	Update interface{} `json:update`
+	Opts json.RawMessage `json:opts`
+}
 
 func colHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		log.Printf("method not post")
+		return
+	}
 	// r.ParseForm()
 	vars := mux.Vars(r)
 	// opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
 	coll := client.Database(vars["db"]).Collection(vars["col"])
-	switch r.Method {
-	case http.MethodGet:
-		// filter
-		filterStr := r.FormValue("filter")
-		log.Printf("filterStr: %v", filterStr)
-		filter := map[string]interface{}{}
-		json.Unmarshal([]byte(filterStr), &filter)
+	// body
+	defer r.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("read body error: %v", err)
+		return
+	}
+	log.Printf("bodyBytes: %v", string(bodyBytes))
+	var body body
+	err = json.Unmarshal(bodyBytes, &body)
+	if err != nil {
+		log.Printf("json.Unmarshal error: %v", err)
+		return
+	}
+	log.Printf("body: %v", body)
+	// -----
+	switch body.Func {
+	case "insertmany":
 		// opts
-		optsStr := `{"Limit":10,"Sort":{"age":1}}` // r.FormValue("opts")
-		opts := &options.FindOptions{}
-		json.Unmarshal([]byte(optsStr), opts)
-		log.Printf("opts: %v", opts)
-		// db
-		cursor, err := coll.Find(context.TODO(), filter, opts)
+		opts := options.InsertMany()
+		err := json.Unmarshal(body.Opts, opts)
 		if err != nil {
-			log.Printf("find error: %v", err)
-			// TODO
+			log.Printf("unmarshal opts error: %v", err)
+			// return
+		}
+		// db
+		res, err := coll.InsertMany(context.TODO(), body.Docs, opts)
+		if err != nil {
+			log.Printf("insertmany error: %v", err)
 			return
 		}
-		var res []bson.M
-		if err = cursor.All(context.TODO(), &res); err != nil {
-			log.Printf("all error: %v", err)
-			// TODO
-			return
-		}
-		// TODO
+		log.Printf("insertIDS: %v", res.InsertedIDs)
 		b, err := json.Marshal(res)
 		if err != nil {
-			// TODO
 			log.Printf("marshal error: %v", err)
 			return
 		}
 		_, err = w.Write(b)
 		if err != nil {
 			log.Printf("write error: %v", err)
-			// TODO
 			return
 		}
-	case http.MethodPost:
-		// docs
-		defer r.Body.Close()
-		body, err := ioutil.ReadAll(r.Body)
-		log.Printf("body: %v", body)
-		docs := []interface{}{}
-		err = json.Unmarshal(body, &docs)
+	case "find":
+		// opts
+		opts := &options.FindOptions{}
+		err := json.Unmarshal(body.Opts, opts)
 		if err != nil {
-			log.Printf("unmarshal error: %v", err)
-			return
+			log.Printf("unmsharl opts error: %v", err)
+			// return
 		}
-		log.Printf("docs: %v", docs)
+		log.Printf("opts: %v", opts)
 		// db
-		res, err := coll.InsertMany(context.TODO(), docs /*, opts*/)
+		cursor, err := coll.Find(context.TODO(), body.Filter, opts)
 		if err != nil {
-			log.Printf("insertmany error: %v", err)
-			// TODO
+			log.Printf("find error: %v", err)
+			return
 		}
-		log.Printf("insertIDS: %v", res.InsertedIDs)
+		var res []bson.M
+		if err = cursor.All(context.TODO(), &res); err != nil {
+			log.Printf("all error: %v", err)
+			return
+		}
+		// res
 		b, err := json.Marshal(res)
-		// TODO
+		if err != nil {
+			log.Printf("marshal error: %v", err)
+			return
+		}
 		_, err = w.Write(b)
 		if err != nil {
 			log.Printf("write error: %v", err)
-			// TODO
 			return
 		}
-	case http.MethodPatch:
-		// res, err := coll.UpdateMany(context.TODO(), filter, update)
-		// if err != nil {
-		// 	log.Printf("updatemany error: %v", err)
-		// 	// TODO
-		// }
-		// log.Printf("matchcount: %v", res.MatchedCount)
-		// TODO
-	case http.MethodDelete:
-		// res, err := coll.DeleteMany(context.TODO(), filter, opts)
-		// if err != nil {
-		// 	log.Printf("deletemany error: %v", err)
-		// 	// TODO
-		// }
-		// log.Printf("deletecount: %v", res.DeletedCount)
-		// TODO
+	case "updatemany":
+		res, err := coll.UpdateMany(context.TODO(), body.Filter, body.Update)
+		if err != nil {
+			log.Printf("updatemany error: %v", err)
+			return
+		}
+		log.Printf("matchcount: %v", res.MatchedCount)
+		b, err := json.Marshal(res)
+		if err != nil {
+			log.Printf("marshal error: %v", err)
+			return
+		}
+		_, err = w.Write(b)
+		if err != nil {
+			log.Printf("write error: %v", err)
+			return
+		}
+	case "deletemany":
+		// opts
+		opts := &options.DeleteOptions{}
+		err := json.Unmarshal(body.Opts, opts)
+		if err != nil {
+			log.Printf("unmsharl opts error: %v", err)
+			// return
+		}
+		log.Printf("opts: %v", opts)
+		// db
+		res, err := coll.DeleteMany(context.TODO(), body.Filter, opts)
+		if err != nil {
+			log.Printf("deletemany error: %v", err)
+			return
+		}
+		log.Printf("deletecount: %v", res.DeletedCount)
+		// res
+		b, err := json.Marshal(res)
+		if err != nil {
+			log.Printf("marshal error: %v", err)
+			return
+		}
+		_, err = w.Write(b)
+		if err != nil {
+			log.Printf("write error: %v", err)
+			return
+		}
 	default:
 		log.Printf("unknown method: %v", r.Method)
 	}
@@ -141,6 +199,7 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// 命令行参数
 	dbUrl := flag.String("dburl", "mongodb://localhost:27017", "mongodb connection url")
+	// TODO url prefix
 	flag.Parse()
 	// mongoclient
 	var err error
