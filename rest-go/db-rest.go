@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
+	// "github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -46,6 +46,7 @@ https://pkg.go.dev/go.mongodb.org/mongo-driver/mongo#pkg-functions
 */
 
 var client *mongo.Client
+
 /*
 {
 	"func": "insertmany|find|updatemany|deletemany",
@@ -58,25 +59,23 @@ var client *mongo.Client
 */
 
 type body struct {
-	Func string `json:func`
-	Docs []interface{} `json:docs`
-	Filter interface{} `json:filter`
-	Update interface{} `json:update`
-	Opts json.RawMessage `json:opts`
+	DB     string          `json:db`
+	Col    string          `json:col`
+	Func   string          `json:func`
+	Docs   []interface{}   `json:docs`
+	Filter interface{}     `json:filter`
+	Update interface{}     `json:update`
+	Opts   json.RawMessage `json:opts`
 }
 
 func colHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
-    w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
-    w.Header().Set("content-type", "application/json")             //返回数据格式是json
+	w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
+	w.Header().Set("content-type", "application/json")             //返回数据格式是json
 	if r.Method != http.MethodPost {
 		log.Printf("method not post")
 		return
 	}
-	// r.ParseForm()
-	vars := mux.Vars(r)
-	// opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
-	coll := client.Database(vars["db"]).Collection(vars["col"])
 	// body
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -92,6 +91,10 @@ func colHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("body: %v", body)
+	// r.ParseForm()
+	// opts := options.Find().SetSort(bson.D{{"age", 1}}) // TODO
+	coll := client.Database(body.DB).Collection(body.Col)
+
 	// -----
 	switch body.Func {
 	case "insertmany":
@@ -219,8 +222,6 @@ func main() {
 		return
 	}
 	// http
-	r := mux.NewRouter()
-	r.HandleFunc("/{db}/{col}", colHandler)
-	http.Handle("/", r)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.HandleFunc("/api/db", colHandler)
+	log.Fatal(http.ListenAndServe(":18080", nil))
 }
